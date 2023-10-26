@@ -1,7 +1,7 @@
-import undetected_chromedriver as uc
+import seleniumbase as sb
+
 from dataclasses import dataclass
 from selectolax.parser import HTMLParser
-from undetected_chromedriver import ChromeOptions
 from urllib.parse import urljoin
 
 
@@ -12,31 +12,26 @@ class Scraper():
 
     def webdriversetup(self):
         PROXY = '154.12.112.208:8800'
-        opt = ChromeOptions()
-        opt.add_argument("--start-maximized")
-        opt.add_argument("--headless=new")
-        opt.add_argument("--no-sandbox")
+        # opt = ChromeOptions()
+        # opt.add_argument("--start-maximized")
+        # opt.add_argument("--headless=new")
+        # opt.add_argument("--no-sandbox")
         # opt.add_argument("--user-data-dir=/home/haritz/snap/chromium/common/chromium")
         # opt.add_argument(r'--profile-directory=Default')
-        opt.add_argument(f'--proxy-server={PROXY}')
-        opt.add_argument("--disable-blink-features=AutomationControlled")
+        # opt.add_argument(f'--proxy-server={PROXY}')
+        # opt.add_argument("--disable-blink-features=AutomationControlled")
 
-        # driver = uc.Chrome(version_main=116,
-        #                    driver_executable_path='./chromedriver',
-        #                    browser_executable_path='/snap/chromium/2673/usr/lib/chromium-browser/chrome', options=opt)
-
-        driver = uc.Chrome(version_main=114, options=opt)
+        driver = sb.Driver(uc=True, user_data_dir='/home/haritz/snap/chromium/common/chromium', proxy=PROXY)
 
         return driver
 
     def fetch_html(self, driver, url):
-        driver.get(url)
-        driver.save_screenshot('screenshot1.png')
-        ua = driver.execute_script("return navigator.userAgent")
-        html = driver.page_source
-        driver.close()
+        # driver.get(url)
+        with driver:
+            driver.open(url)
+            html = driver.get_page_source
+        # html = driver.page_source
         print(html)
-        print(ua)
         return html
 
     def get_listing_link(self, html):
