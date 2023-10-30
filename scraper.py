@@ -1,31 +1,35 @@
-import undetected_chromedriver as uc
 from dataclasses import dataclass
 from selectolax.parser import HTMLParser
-from undetected_chromedriver import ChromeOptions
 from urllib.parse import urljoin
 
+import undetected_chromedriver as uc
+from undetected_chromedriver.options import ChromeOptions
 
 @dataclass
 class Scraper():
     base_url: str = 'https://www.zillow.com'
 
-
     def webdriversetup(self):
-        PROXY = '154.12.112.208:8800'
+        PROXY = '192.126.196.93:8800'
         opt = ChromeOptions()
+
+        user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36'
+        # 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.6441.99 Safari/537.36'
+        # 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.7608.60 Safari/537.36'
+        # 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.7.7709.37 Safari/537.36'
+        # 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.5694.46 Safari/537.36'
+        # 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.7.8254.20 Safari/537.36'
+
         opt.add_argument("--start-maximized")
         opt.add_argument("--headless=new")
+        opt.add_argument(f'--user-agent={user_agent}')
         opt.add_argument("--no-sandbox")
-        # opt.add_argument("--user-data-dir=/home/haritz/snap/chromium/common/chromium")
-        # opt.add_argument(r'--profile-directory=Default')
+        opt.add_argument(r'--user-data-dir=C:\Users\Muhammad Harits R\AppData\Local\Google\Chrome\User Data')
+        opt.add_argument(r'--profile-directory=Default')
         opt.add_argument(f'--proxy-server={PROXY}')
         opt.add_argument("--disable-blink-features=AutomationControlled")
 
-        # driver = uc.Chrome(version_main=116,
-        #                    driver_executable_path='./chromedriver',
-        #                    browser_executable_path='/snap/chromium/2673/usr/lib/chromium-browser/chrome', options=opt)
-
-        driver = uc.Chrome(version_main=114, options=opt)
+        driver = uc.Chrome(options=opt)
 
         return driver
 
@@ -53,7 +57,7 @@ class Scraper():
 
     def main(self):
         driver = self.webdriversetup()
-        html = self.fetch_html(driver=driver, url='https://www.zillow.com/homes/Tucson,-AZ_rb/')
+        html = self.fetch_html(driver=driver, url='https://www.zillow.com')
         self.get_listing_link(html)
 
 if __name__ == '__main__':
