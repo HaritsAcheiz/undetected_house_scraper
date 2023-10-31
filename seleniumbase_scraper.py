@@ -1,6 +1,7 @@
 import time
-from dataclasses import dataclass
-from random import uniform
+from dataclasses import dataclass, field
+from random import uniform, choice
+from typing import List
 
 from selectolax.parser import HTMLParser
 from urllib.parse import urljoin
@@ -15,29 +16,19 @@ from selenium.webdriver.support.wait import WebDriverWait
 @dataclass
 class Scraper():
     base_url: str = 'https://www.zillow.com'
-
+    proxies: List[str] = field(default_factory=lambda: ['154.12.112.208', '192.126.194.95', '192.126.196.137',
+                                                         '154.12.112.163', '154.38.156.14', '192.126.194.135',
+                                                         '154.38.156.187', '192.126.196.93', '154.12.112.208',
+                                                         '154.12.113.202', '154.38.156.188:8800'])
+    uas: List[str] = field(default_factory=lambda: ['Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0',
+                                                     'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.8',
+                                                     'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0 Herring/97.1.1600.1'])
 
     def webdriversetup(self):
-        # ip = '154.12.112.208'
-        # ip = '192.126.194.95'
-        ip = '192.126.196.137'
-        # ip = '154.12.112.163:8800'
-# 154.38.156.14:8800
-# 192.126.194.135:8800
-# 154.38.156.187:8800
-# 192.126.196.93:8800
-# 154.12.112.208:8800
-# 154.12.113.202:8800
-# 154.38.156.188:8800'
-
         port = '8800'
-        # ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0'
-        # ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.8'
-        ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0 Herring/97.1.1600.1'
-
-        # profile_path = "C:/Users/Muhammad Harits R/AppData/Roaming/Mozilla/Firefox/Profiles/cr7alez2.default-release"
+        ua = choice(self.uas)
+        ip = choice(self.proxies)
         opt = FirefoxOptions()
-        # opt.add_argument("--window-size=1024,768")
         opt.add_argument("--start-maximized")
         # opt.add_argument("--headless")
         opt.add_argument("--no-sandbox")
@@ -64,78 +55,73 @@ class Scraper():
         opt.set_preference("browser.privatebrowsing.autostart", True)
 
         driver = Firefox(options=opt)
+        print(ip, ua)
 
         return driver
 
-    def fetch_html(self, driver, url):
+    def fetch_html(self, url):
         html = ''
-        try:
-            driver.maximize_window()
-            driver.get(url)
-            wait = WebDriverWait(driver, 15)
-            wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'span.result-count')))
-            clicking_objects = driver.find_elements(By.CSS_SELECTOR, 'ul.photo-cards.photo-cards_extra-attribution > li')
-            for object in clicking_objects:
-                # Scroll until element found
-                try:
-                    js_code = "arguments[0].scrollIntoView();"
-                    element = object.find_element(By.CSS_SELECTOR, 'a.property-card-link')
-                    driver.execute_script(js_code, element)
-                except:
-                    continue
-            html = driver.page_source
-        except Exception as e:
-            print(e)
-            pass
-        wait = input("press any key to continue...")
-        driver.close()
-        print(html)
-        return html
-
-    def get_listing_link(self, html):
-        tree = HTMLParser(html)
-        listings = tree.css('ul.photo-cards.photo-cards_extra-attribution > li')
-        links = []
-        for listing in listings:
-            print("---------------------------------------------------------------------")
-            print(listing.html)
+        htmls = []
+        last_page = False
+        while not last_page:
+            driver = self.webdriversetup()
             try:
-                endpoint = listing.css_first('a').attributes.get('href', '')
-                link = endpoint
-                links.append(link)
+                print(f'Fetching {url}')
+                driver.maximize_window()
+                driver.get(url)
+                wait = WebDriverWait(driver, 15)
+                wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'span.result-count')))
+
+                # Scroll until element found
+                clicking_objects = driver.find_elements(By.CSS_SELECTOR, 'ul.photo-cards.photo-cards_extra-attribution > li')
+                for object in clicking_objects:
+                    try:
+                        time.sleep(uniform(0.1, 1.0))
+                        js_code = "arguments[0].scrollIntoView();"
+                        element = object.find_element(By.CSS_SELECTOR, 'a.property-card-link')
+                        driver.execute_script(js_code, element)
+                    except:
+                        continue
+                htmls.append(driver.page_source)
+
+                # Move to the next page
+                next_page_elem = driver.find_element(By.CSS_SELECTOR, 'a[title="Next page"]')
+                if next_page_elem.get_attribute('aria-disabled') == 'true':
+                    last_page = True
+                else:
+                    last_page = False
+                    url = urljoin(self.base_url, next_page_elem.get_attribute('href'))
             except Exception as e:
                 print(e)
-                continue
-        print(f'{len(links)} link(s) collected!')
-        print(links)
+                wait = input("press any key to continue...")
+                driver.close()
+                break
+            driver.close()
+
+        return htmls
+
+    def get_listing_link(self, htmls):
+        collected_links = []
+        for html in htmls:
+            tree = HTMLParser(html)
+            listings = tree.css('ul.photo-cards.photo-cards_extra-attribution > li')
+            links = []
+            for listing in listings:
+                try:
+                    endpoint = listing.css_first('a').attributes.get('href', '')
+                    link = endpoint
+                    links.append(link)
+                except Exception as e:
+                    print(e)
+                    continue
+            collected_links.extend(links)
+        return collected_links
+
 
     def main(self):
-        driver = self.webdriversetup()
-
-        # Wait and move the cursor to mimic human behavior
-        time.sleep(uniform(0.1, 1.0))
-
-        # action = ActionChains(driver)
-        # action.click_and_hold()
-        # action.move_by_offset(1, 1)
-        # action.move_by_offset(1, 1)
-        # action.move_by_offset(1, 1)
-        # action.move_by_offset(1, 1)
-        # action.move_by_offset(1, 1)
-        # action.move_by_offset(1, 1)
-        # action.move_by_offset(1, 1)
-        # action.move_by_offset(1, 1)
-        # action.move_by_offset(1, 1)
-        # action.move_by_offset(1, 1)
-        # action.move_by_offset(1, 6)
-        # action.move_by_offset(1, 8)
-        # action.release()
-        # action.perform()
-        # action.reset_actions()
-
-        html = self.fetch_html(driver=driver, url='https://www.zillow.com/homes/Tucson,-AZ_rb/')
-        self.get_listing_link(html)
-
+        htmls = self.fetch_html(url='https://www.zillow.com/homes/Tucson,-AZ_rb/')
+        collected_links = self.get_listing_link(htmls)
+        print(collected_links)
 
 if __name__ == '__main__':
     s = Scraper()
