@@ -5,8 +5,11 @@ from random import uniform
 from selectolax.parser import HTMLParser
 from urllib.parse import urljoin
 
-from selenium.webdriver import Firefox, ActionChains
+from selenium.webdriver import Firefox, ActionChains, Keys
 from selenium.webdriver import FirefoxOptions
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as ec
+from selenium.webdriver.support.wait import WebDriverWait
 
 
 @dataclass
@@ -16,9 +19,9 @@ class Scraper():
 
     def webdriversetup(self):
         # ip = '154.12.112.208'
-        ip = '192.126.194.95'
-        # ip = '192.126.196.137'
-# 154.12.112.163:8800
+        # ip = '192.126.194.95'
+        ip = '192.126.196.137'
+        # ip = '154.12.112.163:8800'
 # 154.38.156.14:8800
 # 192.126.194.135:8800
 # 154.38.156.187:8800
@@ -37,10 +40,10 @@ class Scraper():
         # opt.add_argument("--window-size=1024,768")
         opt.add_argument("--start-maximized")
         # opt.add_argument("--headless")
-        # opt.add_argument("--no-sandbox")
+        opt.add_argument("--no-sandbox")
         # opt.add_argument("-profile")
         # opt.add_argument(profile_path)
-        # opt.add_argument("--disable-blink-features=AutomationControlled")
+        opt.add_argument("--disable-blink-features=AutomationControlled")
 
         opt.set_preference("general.useragent.override", ua)
         opt.set_preference('network.proxy.type', 1)
@@ -52,21 +55,38 @@ class Scraper():
         opt.set_preference('network.proxy.http_port', int(port))
         opt.set_preference('network.proxy.ssl', ip)
         opt.set_preference('network.proxy.ssl_port', int(port))
-        # opt.set_preference('dom.webdriver.enable', False)
-        # opt.set_preference('useAutomationExtension', False)
-        # opt.set_preference("browser.cache.disk.enable", False)
-        # opt.set_preference("browser.cache.memory.enable", False)
-        # opt.set_preference("browser.cache.offline.enable", False)
-        # opt.set_preference("network.http.use-cache", False)
-        # opt.set_preference("browser.privatebrowsing.autostart", True)
+        opt.set_preference('dom.webdriver.enable', False)
+        opt.set_preference('useAutomationExtension', False)
+        opt.set_preference("browser.cache.disk.enable", False)
+        opt.set_preference("browser.cache.memory.enable", False)
+        opt.set_preference("browser.cache.offline.enable", False)
+        opt.set_preference("network.http.use-cache", False)
+        opt.set_preference("browser.privatebrowsing.autostart", True)
 
         driver = Firefox(options=opt)
 
         return driver
 
     def fetch_html(self, driver, url):
-        driver.get(url)
-        html = driver.page_source
+        html = ''
+        try:
+            driver.maximize_window()
+            driver.get(url)
+            wait = WebDriverWait(driver, 15)
+            wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'span.result-count')))
+            clicking_objects = driver.find_elements(By.CSS_SELECTOR, 'ul.photo-cards.photo-cards_extra-attribution > li')
+            for object in clicking_objects:
+                # Scroll until element found
+                try:
+                    js_code = "arguments[0].scrollIntoView();"
+                    element = object.find_element(By.CSS_SELECTOR, 'a.property-card-link')
+                    driver.execute_script(js_code, element)
+                except:
+                    continue
+            html = driver.page_source
+        except Exception as e:
+            print(e)
+            pass
         wait = input("press any key to continue...")
         driver.close()
         print(html)
@@ -75,7 +95,7 @@ class Scraper():
     def get_listing_link(self, html):
         tree = HTMLParser(html)
         listings = tree.css('ul.photo-cards.photo-cards_extra-attribution > li')
-        links=[]
+        links = []
         for listing in listings:
             print("---------------------------------------------------------------------")
             print(listing.html)
@@ -113,9 +133,9 @@ class Scraper():
         # action.perform()
         # action.reset_actions()
 
-
         html = self.fetch_html(driver=driver, url='https://www.zillow.com/homes/Tucson,-AZ_rb/')
         self.get_listing_link(html)
+
 
 if __name__ == '__main__':
     s = Scraper()
