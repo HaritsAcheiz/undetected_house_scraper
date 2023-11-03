@@ -16,13 +16,20 @@ from selenium.webdriver.support.wait import WebDriverWait
 @dataclass
 class Scraper():
     base_url: str = 'https://www.zillow.com'
-    proxies: List[str] = field(default_factory=lambda: ['154.12.112.208', '192.126.194.95', '192.126.196.137',
-                                                         '154.12.112.163', '154.38.156.14', '192.126.194.135',
-                                                         '154.38.156.187', '192.126.196.93', '154.12.112.208',
-                                                         '154.12.113.202', '154.38.156.188'])
-    uas: List[str] = field(default_factory=lambda: ['Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0',
-                                                     'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.8',
-                                                     'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0 Herring/97.1.1600.1'])
+    proxies: List[str] = field(default_factory=lambda: ['154.38.156.14', '154.12.113.202', '154.38.156.188', '154.12.112.208', '192.126.194.95',
+                                                        '192.126.196.137', '154.12.112.163',  '192.126.194.135',
+                                                        '154.38.156.187', '192.126.196.93', '154.12.112.208',
+                                                        ])
+    # uas: List[str] = field(default_factory=lambda: ['Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0',
+    #                                                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.8',
+    #                                                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0 Herring/97.1.1600.1'])
+
+    uas: List[str] = field(
+        default_factory=lambda: ['Mozilla/5.0 (X11; Linux i686; rv:109.0) Gecko/20100101 Firefox/119.0',
+                                 'Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:109.0) Gecko/20100101 Firefox/119.0',
+                                 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/119.0',
+                                 'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/119.0'])
+
     proxy_index: int = 0
 
     def webdriversetup(self):
@@ -35,7 +42,7 @@ class Scraper():
             self.proxy_index = 0
         opt = FirefoxOptions()
         opt.add_argument("--start-maximized")
-        # opt.add_argument("--headless")
+        opt.add_argument("--headless")
         opt.add_argument("--no-sandbox")
         # opt.add_argument("-profile")
         # opt.add_argument(profile_path)
@@ -68,40 +75,40 @@ class Scraper():
         html = ''
         htmls = []
         last_page = False
-        while not last_page:
-            driver = self.webdriversetup()
+        # while not last_page:
+        driver = self.webdriversetup()
+        # try:
+        print(f'Fetching {url}')
+        driver.maximize_window()
+        driver.get(url)
+        wait = WebDriverWait(driver, 20)
+        wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'span.result-count')))
+
+        # Scroll until element found
+        clicking_objects = driver.find_elements(By.CSS_SELECTOR, 'ul.photo-cards.photo-cards_extra-attribution > li')
+        for object in clicking_objects:
             try:
-                print(f'Fetching {url}')
-                driver.maximize_window()
-                driver.get(url)
-                wait = WebDriverWait(driver, 20)
-                wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'span.result-count')))
+                time.sleep(uniform(0.1, 1.0))
+                js_code = "arguments[0].scrollIntoView();"
+                element = object.find_element(By.CSS_SELECTOR, 'a.property-card-link')
+                driver.execute_script(js_code, element)
+            except:
+                continue
+        htmls.append(driver.page_source)
 
-                # Scroll until element found
-                clicking_objects = driver.find_elements(By.CSS_SELECTOR, 'ul.photo-cards.photo-cards_extra-attribution > li')
-                for object in clicking_objects:
-                    try:
-                        time.sleep(uniform(0.1, 1.0))
-                        js_code = "arguments[0].scrollIntoView();"
-                        element = object.find_element(By.CSS_SELECTOR, 'a.property-card-link')
-                        driver.execute_script(js_code, element)
-                    except:
-                        continue
-                htmls.append(driver.page_source)
-
-                # Move to the next page
-                next_page_elem = driver.find_element(By.CSS_SELECTOR, 'a[title="Next page"]')
-                if next_page_elem.get_attribute('aria-disabled') == 'true':
-                    last_page = True
-                else:
-                    last_page = False
-                    url = urljoin(self.base_url, next_page_elem.get_attribute('href'))
-            except Exception as e:
-                print(e)
-                wait = input("press any key to continue...")
-                driver.close()
-                break
-            driver.close()
+        # Move to the next page
+        next_page_elem = driver.find_element(By.CSS_SELECTOR, 'a[title="Next page"]')
+        if next_page_elem.get_attribute('aria-disabled') == 'true':
+            last_page = True
+        else:
+            last_page = False
+            url = urljoin(self.base_url, next_page_elem.get_attribute('href'))
+        # except Exception as e:
+        # print(e)
+        # wait = input("press any key to continue...")
+        driver.close()
+        # break
+        # driver.close()
 
         return htmls
 
@@ -126,7 +133,7 @@ class Scraper():
     def main(self):
         htmls = self.fetch_html(url='https://www.zillow.com/homes/Tucson,-AZ_rb/')
         collected_links = self.get_listing_link(htmls)
-        return(collected_links)
+        print(collected_links)
 
 if __name__ == '__main__':
     s = Scraper()

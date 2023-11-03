@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from airflow.decorators import dag
 from airflow.operators.bash import BashOperator
-from includes.ARTrans import ARTrans
+from includes.seleniumbase_scraper import Scraper
 
 default_args = {
     'owner': 'Harits',
@@ -37,7 +37,7 @@ default_args = {
 def daily0900():
 
     scrape_link = BashOperator(task_id='scrape_link',
-                               bash_command="python /opt/airflow/dags/includes/scrape_link.py")
+                               bash_command="python /opt/airflow/dags/includes/seleniumbase_scraper.py")
 
     scrape_link
 
