@@ -19,15 +19,20 @@ class Scraper():
     proxies: List[str] = field(default_factory=lambda: ['154.12.112.208', '192.126.194.95', '192.126.196.137',
                                                          '154.12.112.163', '154.38.156.14', '192.126.194.135',
                                                          '154.38.156.187', '192.126.196.93', '154.12.112.208',
-                                                         '154.12.113.202', '154.38.156.188:8800'])
+                                                         '154.12.113.202', '154.38.156.188'])
     uas: List[str] = field(default_factory=lambda: ['Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0',
                                                      'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.8',
                                                      'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0 Herring/97.1.1600.1'])
+    proxy_index: int = 0
 
     def webdriversetup(self):
         port = '8800'
         ua = choice(self.uas)
-        ip = choice(self.proxies)
+        ip = self.proxies[self.proxy_index]
+        if self.proxy_index < 10:
+            self.proxy_index += 1
+        else:
+            self.proxy_index = 0
         opt = FirefoxOptions()
         opt.add_argument("--start-maximized")
         # opt.add_argument("--headless")
@@ -54,8 +59,8 @@ class Scraper():
         opt.set_preference("network.http.use-cache", False)
         opt.set_preference("browser.privatebrowsing.autostart", True)
 
-        driver = Firefox(options=opt)
         print(ip, ua)
+        driver = Firefox(options=opt)
 
         return driver
 
@@ -69,7 +74,7 @@ class Scraper():
                 print(f'Fetching {url}')
                 driver.maximize_window()
                 driver.get(url)
-                wait = WebDriverWait(driver, 15)
+                wait = WebDriverWait(driver, 20)
                 wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, 'span.result-count')))
 
                 # Scroll until element found
@@ -121,7 +126,7 @@ class Scraper():
     def main(self):
         htmls = self.fetch_html(url='https://www.zillow.com/homes/Tucson,-AZ_rb/')
         collected_links = self.get_listing_link(htmls)
-        print(collected_links)
+        return(collected_links)
 
 if __name__ == '__main__':
     s = Scraper()

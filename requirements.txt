@@ -1,0 +1,7 @@
+selenium==4.15.0
+selectolax==0.3.17
+psycopg2-binary==2.9.9
+aiohttp==3.8.6
+apache-airflow-providers-celery==3.4.1
+apache-airflow-providers-redis==3.4.0
+pandas==2.1.2
